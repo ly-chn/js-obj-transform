@@ -1,0 +1,12 @@
+{
+  "name": "ts-project",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "license": "MIT",
+  "scripts": {
+    "run": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "typescript": "^4.9.4"
+  }
+}
