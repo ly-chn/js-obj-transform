@@ -35,6 +35,24 @@ const fontObj = {
  */
 type KeyMap = [sourcePath: string, targetPath: string, transform: Function, filterNon?: boolean]
 
+type PathMap = {
+    sourcePath: string
+    targetPath: string
+    arrKey: {}
+}
+
+// todo: 先明确获取值的格式
+const map = {
+    k1: {
+        1: {
+            k2: {
+                1: null
+            }
+        }
+    }
+}
+
+
 const keyMap: KeyMap[] = [
     ['username', 'basic.name', String],
     ['userAage', 'basic.age', String]
@@ -50,18 +68,40 @@ class Transform {
         const result = {}
         for (const [sourcePath, targetPath, transform, filterNon] of keyMap) {
             const sourceValue = this.getValue(source, sourcePath)
-            const targetValue = (sourceValue === null || sourceValue === undefined) ? sourceValue : transform(sourceValue)
-            this.setValue(result, targetPath, targetValue)
+            if ([null]) {
+
+            } else {
+                this.setValue(result, targetPath, transform(sourceValue))
+            }
         }
         return result
     }
 
-    private static getValue(obj: Record<string, any>, path: string) {
+    private static getValueWithPath(obj: Record<string, any>, sourcePath: string, targetPath: string)
+        : { path: string, value: any, k?: any }[] | void {
+        if (!sourcePath.includes('[')) {
+            return [{
+                path: sourcePath,
+                value: obj[sourcePath]
+            }]
+        }
+        const sourcePathArr = sourcePath.split('.')
+        const arrKeys = sourcePath.match(this.arrKeyRegex)!
+        let result = obj
+        for (let arrKey of arrKeys) {
+
+        }
+    }
+
+    private static getValueLength(obj: Record<string, any>, path: string) {
+        return this.getValue(obj, path)?.length || 0
+    }
+
+    private static getValue(obj: Record<string, any>, path: string): any {
         let result = obj
         for (const subPath of path.split('.')) {
-            console.log(subPath)
             if (!obj) {
-                return null
+                return obj
             }
             if (subPath.includes('[')) {
                 const [key, index] = subPath.split(this.splitIndexRegex)
@@ -74,63 +114,71 @@ class Transform {
     }
 
     private static setValue(obj: Record<string, any>, path: string, value: any) {
-        const pathArr = path.split('.')
-        let result = obj
-        for (let i = 0; i < pathArr.length; i++) {
-            const path = pathArr[i]
-            if (path.includes('[')) {
-                const [key, index] = path.split(/[\[\]]/)
-                if (i === pathArr.length - 1) {
-                    result[key][index] = value
-                } else {
-                    result = result[key][index]
+        let current = obj
+        const subPathList = path.split('.')
+        for (let i = 0; i < subPathList.length; i++) {
+            const subPath = subPathList[i]
+            const [key, ...indexList] = subPath.split(/[\[\]]/).filter(it => it)
+            const isLast = i === subPathList.length - 1
+            if (subPath.includes('[')) {
+                current[key] = current[key] ?? []
+                current = current[key]
+                for (let j = 0; j < indexList.length; j++) {
+                    if (isLast && j === indexList.length - 1) {
+                        current[indexList[j]] = value
+                    } else {
+                        current = current[indexList[j]] = j === indexList.length - 1 ? {} : []
+                    }
                 }
             } else {
-                if (i === pathArr.length - 1) {
-                    result[path] = value
-                } else {
-                    result = result[path]
-                }
+                current = current[subPath] = isLast ? value : current[subPath] || {}
             }
         }
     }
 }
 
+// console.log(Transform.transformNotSupportArray(serverObj, keyMap))
+
+
+function getValueWithPath(obj: Record<string, any>, sourcePath: string, targetPath: string)
+    : { path: string, value: any, k?: any }[] | void {
+    if (!sourcePath.includes('[')) {
+        return [{
+            path: sourcePath,
+            value: obj[sourcePath]
+        }]
+    }
+    const sourcePathArr = sourcePath.split('.')
+    const arrKeys = sourcePath.match(/\[[a-zA-Z0-9]+]/g)!
+    let result = obj
+    for (let arrKey of arrKeys) {
+        console.log(arrKeys)
+    }
+}
 function setValue(obj: Record<string, any>, path: string, value: any) {
-    let temp = obj
+    let current = obj
     const subPathList = path.split('.')
     for (let i = 0; i < subPathList.length; i++) {
-        console.log(JSON.stringify(temp))
         const subPath = subPathList[i]
-        const [key, ...indexList] = subPath.split(/[\[\]]/)
+        const [key, ...indexList] = subPath.split(/[\[\]]/).filter(it => it)
         const isLast = i === subPathList.length - 1
-        if (isLast) {
-            console.log('set value', subPath, temp, value)
-            if (subPath.includes('[')) {
-                temp[key] = temp[key] || []
-                // temp[key][index] = value
-            } else {
-                temp[subPath] = value
-            }
-            return
-        }
         if (subPath.includes('[')) {
-            temp[key] = temp[key] ?? []
-            temp = temp[key]
+            current[key] = current[key] ?? []
+            current = current[key]
             for (let j = 0; j < indexList.length; j++) {
-                temp[indexList[j]] = j === indexList.length - 1 ? {} : []
-                temp = temp[indexList[j]]
+                if (isLast && j === indexList.length - 1) {
+                    current[indexList[j]] = value
+                } else {
+                    current = current[indexList[j]] = j === indexList.length - 1 ? {} : []
+                }
             }
         } else {
-            temp[subPath] = temp[subPath] || {}
-            temp = temp[subPath]
+            current = current[subPath] = isLast ? value : current[subPath] || {}
         }
+        //
     }
-
 }
-
+// console.log(getValueWithPath(serverObj, 'info.score[k1].type', ''))
 const obj = {}
-
-setValue(obj, 'a.b[0][0].c', 1)
-
+setValue(obj, 'a[0][0].b[0].c[0]', '你好')
 console.log(JSON.stringify(obj, null, 4))
